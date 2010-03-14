@@ -5,6 +5,7 @@ require 'test_help'
 
 $: << File.expand_path(File.dirname(__FILE__) + '/..')
 require 'clearance'
+require 'mocha'
 
 begin
   require 'redgreen'
