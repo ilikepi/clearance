@@ -1,9 +1,11 @@
 module Clearance
   class Configuration
-    attr_accessor :mailer_sender
+    attr_accessor :mailer_sender, :bcrypt_cost
 
     def initialize
       @mailer_sender = 'donotreply@example.com'
+      # The default cost in bcrypt-ruby is 10.
+      @bcrypt_cost   = BCrypt::Engine::DEFAULT_COST
     end
   end
 

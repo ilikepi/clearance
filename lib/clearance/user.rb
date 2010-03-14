@@ -1,4 +1,5 @@
 require 'digest/sha1'
+require 'bcrypt'
 
 module Clearance
   module User
@@ -65,8 +66,7 @@ module Clearance
       # salt, token, password encryption are handled before_save.
       def self.included(model)
         model.class_eval do
-          before_save   :initialize_salt,
-                        :encrypt_password
+          before_save   :encrypt_password
           before_create :generate_confirmation_token,
                         :generate_remember_token
           after_create  :send_confirmation_email, :unless => :email_confirmed?
@@ -82,7 +82,7 @@ module Clearance
       # @example
       #   user.authenticated?('password')
       def authenticated?(password)
-        encrypted_password == encrypt(password)
+        BCrypt::Password.new(encrypted_password) == password
       end
 
       # Set the remember token.
@@ -138,19 +138,21 @@ module Clearance
 
       protected
 
-      def generate_hash(string)
-        Digest::SHA1.hexdigest(string)
+      def generate_hash(string, use_bcrypt = false)
+        if use_bcrypt
+          BCrypt::Password.create(string, :cost => Clearance.configuration.bcrypt_cost)
+        else
+          Digest::SHA1.hexdigest(string)
+        end
       end
 
-      def initialize_salt
-        if new_record?
-          self.salt = generate_hash("--#{Time.now.utc}--#{password}--#{rand}--")
-        end
+      def salt
+        self.encrypted_password[0..28]
       end
 
       def encrypt_password
         return if password.blank?
-        self.encrypted_password = encrypt(password)
+        self.encrypted_password = generate_hash(password, :use_bcrypt)
       end
 
       def encrypt(string)

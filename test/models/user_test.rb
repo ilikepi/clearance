@@ -29,28 +29,20 @@ class UserTest < ActiveSupport::TestCase
       assert user.errors.on(:password)
     end
 
-    should "initialize salt" do
-      assert_not_nil Factory(:user).salt
-    end
-
     should "initialize confirmation token" do
       assert_not_nil Factory(:user).confirmation_token
     end
 
     context "encrypt password" do
       setup do
-        @salt = "salt"
-        @user = Factory.build(:user, :salt => @salt)
-        def @user.initialize_salt; end
-        @user.save!
+        @user = Factory(:user)
         @password = @user.password
-
-        @user.send(:encrypt, @password)
-        @expected = Digest::SHA1.hexdigest("--#{@salt}--#{@password}--")
       end
 
-      should "create an encrypted password using SHA1 encryption" do
-        assert_equal @expected, @user.encrypted_password
+      should "create an encrypted password using BCrypt encryption" do
+        assert_block do
+          BCrypt::Password.new(@user.encrypted_password) == @password
+        end
       end
     end
 
@@ -144,7 +136,7 @@ class UserTest < ActiveSupport::TestCase
   context "An email confirmed user" do
     setup do
       @user = Factory(:email_confirmed_user)
-      @old_encrypted_password = @user.encrypted_password
+      @old_password = @user.password
     end
 
     context "who updates password with confirmation" do
@@ -153,8 +145,9 @@ class UserTest < ActiveSupport::TestCase
       end
 
       should "change encrypted password" do
-        assert_not_equal @user.encrypted_password,
-                         @old_encrypted_password
+        assert_block do
+          !(BCrypt::Password.new(@user.encrypted_password) == @old_password)
+        end
       end
     end
   end
@@ -177,7 +170,7 @@ class UserTest < ActiveSupport::TestCase
   context "An email confirmed user" do
     setup do
       @user = Factory(:email_confirmed_user)
-      @old_encrypted_password = @user.encrypted_password
+      @old_password = @user.password
       @user.confirm_email!
     end
 
@@ -198,8 +191,9 @@ class UserTest < ActiveSupport::TestCase
           end
 
           should "change encrypted password" do
-            assert_not_equal @user.encrypted_password,
-                             @old_encrypted_password
+            assert_block do
+              !(BCrypt::Password.new(@user.encrypted_password) == @old_password)
+            end
           end
 
           should "clear confirmation token" do
@@ -213,8 +207,9 @@ class UserTest < ActiveSupport::TestCase
           end
 
           should "not change encrypted password" do
-            assert_equal @user.encrypted_password,
-                         @old_encrypted_password
+            assert_block do
+              BCrypt::Password.new(@user.encrypted_password) == @old_password
+            end
           end
 
           should "not clear confirmation token" do

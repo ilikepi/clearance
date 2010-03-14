@@ -100,23 +100,25 @@ class PasswordsControllerTest < ActionController::TestCase
 
     context "on PUT to #update with matching password and password confirmation" do
       setup do
-        new_password = "new_password"
-        @encrypted_new_password = @user.send(:encrypt, new_password)
-        assert_not_equal @encrypted_new_password, @user.encrypted_password
+        @new_password = "new_password"
+        assert_block do
+          !(BCrypt::Password.new(@user.encrypted_password) == @new_password)
+        end
 
         put(:update,
             :user_id  => @user,
             :token    => @user.confirmation_token,
             :user     => {
-              :password              => new_password,
-              :password_confirmation => new_password
+              :password              => @new_password,
+              :password_confirmation => @new_password
             })
         @user.reload
       end
 
       should "update password" do
-        assert_equal @encrypted_new_password,
-                     @user.encrypted_password
+        assert_block do
+          BCrypt::Password.new(@user.encrypted_password) == @new_password
+        end
       end
 
       should "clear confirmation token" do
@@ -133,22 +135,23 @@ class PasswordsControllerTest < ActionController::TestCase
 
     context "on PUT to #update with password but blank password confirmation" do
       setup do
-        new_password = "new_password"
-        @encrypted_new_password = @user.send(:encrypt, new_password)
+        @new_password = "new_password"
+        @encrypted_new_password = @user.send(:encrypt, @new_password)
 
         put(:update,
             :user_id => @user.to_param,
             :token   => @user.confirmation_token,
             :user    => {
-              :password => new_password,
+              :password => @new_password,
               :password_confirmation => ''
             })
         @user.reload
       end
 
       should "not update password" do
-        assert_not_equal @encrypted_new_password,
-                         @user.encrypted_password
+        assert_block do
+          !(BCrypt::Password.new(@user.encrypted_password) == @new_password)
+        end
       end
 
       should "not clear token" do
