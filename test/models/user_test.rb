@@ -115,6 +115,28 @@ class UserTest < ActiveSupport::TestCase
       assert ! ::User.authenticate(@user.email, 'bad_password')
       assert ! @user.authenticated?('bad_password')
     end
+
+    context "authenticating with a SHA1 password" do
+      setup do
+        @user.salt               = "too_much_seasoning"
+        old_style_string         = "--#{@user.salt}--#{@user.password}--"
+        @user.encrypted_password = Digest::SHA1.hexdigest(old_style_string)
+
+        # Prevent before_save from converting to BCrypt prematurely.
+        def @user.encrypt_password; end
+        @user.save(false)
+
+        assert ::User.authenticate(@user.email, @password)
+        # authenticate will convert to BCrypt; @user will then be out of sync.
+        @bcrypted_password = User.find_by_email(@user.email).encrypted_password
+      end
+
+      should "be converted to BCrypt" do
+        assert_block do
+          BCrypt::Password.new(@bcrypted_password) == @password
+        end
+      end
+    end
   end
 
   # resetting remember token

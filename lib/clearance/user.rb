@@ -82,7 +82,7 @@ module Clearance
       # @example
       #   user.authenticated?('password')
       def authenticated?(password)
-        BCrypt::Password.new(encrypted_password) == password
+        self.authenticate_with_conversion(password)
       end
 
       # Set the remember token.
@@ -132,6 +132,7 @@ module Clearance
         self.password_confirmation = new_password_confirmation
         if valid?
           self.confirmation_token = nil
+          self.salt = nil
         end
         save
       end
@@ -146,8 +147,12 @@ module Clearance
         end
       end
 
-      def salt
-        self.encrypted_password[0..28]
+      def encrypted_with_sha1?
+        encrypted_password =~ /^[0-9a-f]{40}$/
+      end
+
+      def measured_salt
+        encrypted_with_sha1? ? salt : encrypted_password[0..28]
       end
 
       def encrypt_password
@@ -155,8 +160,20 @@ module Clearance
         self.encrypted_password = generate_hash(password, :use_bcrypt)
       end
 
+      def authenticate_with_conversion(password)
+        if self.encrypted_with_sha1?
+          if encrypt(password) == encrypted_password
+            return self.update_password(password, password)
+          else
+            return false
+          end
+        else
+          BCrypt::Password.new(encrypted_password) == password
+        end
+      end
+
       def encrypt(string)
-        generate_hash("--#{salt}--#{string}--")
+        generate_hash("--#{measured_salt}--#{string}--")
       end
 
       def generate_confirmation_token
