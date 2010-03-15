@@ -177,7 +177,7 @@ module Clearance
       end
 
       def generate_confirmation_token
-        self.confirmation_token = encrypt("--#{Time.now.utc}--#{password}--#{rand}--")
+        self.confirmation_token = encrypt("--#{Time.now.utc}--#{encrypted_password}--#{rand}--")
       end
 
       def generate_remember_token
